@@ -1,0 +1,32 @@
+{
+  "inbounds": [
+    {
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "shadowsocks",
+      "settings": {
+        "servers": [
+          {
+            "address": "50.114.58.91",
+            "port": 8388,
+            "method": "aes-256-gcm",
+            "password": "42vGugNC4IFwmxxZswByqQa7bpY986VR"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/ray"
+        }
+      }
+    }
+  ]
+}

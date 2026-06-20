@@ -1,0 +1,11 @@
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+v2ray-linux-64.zip
+*.tar.gz
