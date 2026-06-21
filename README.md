@@ -228,3 +228,49 @@ GitHub: https://github.com/neodequadt-jpg
 **Статус:** Production Ready ✅
 **Тестировано на:** 4 устройств (2x LMDE + 2x Android)
 
+
+---
+
+## 📊 Мониторинг
+
+### Prometheus (метрики)
+```bash
+# Открыть в браузере
+http://50.114.58.91:9090
+```
+
+### Telegram бот (алерты)
+- Проверяет V2Ray каждую минуту
+- Отправляет сообщение если V2Ray упадёт
+- Конфиг: `/etc/v2ray-telegram/bot.env`
+
+### Grafana (графики)
+```bash
+# Если не работает
+ssh root@50.114.58.91 << 'FIX'
+cd /opt/monitoring && docker rm grafana -f
+docker compose up -d grafana && sleep 10
+FIX
+
+# Доступ: http://50.114.58.91:3000 (admin/admin)
+```
+
+### Команды на LMDE
+
+```bash
+# Проверить статус VPS
+./scripts/monitor.sh status
+
+# Посмотреть логи
+./scripts/monitor.sh logs
+
+# Перезагрузить сервисы
+./scripts/monitor.sh restart
+
+# SSH туннели (локальный доступ)
+./scripts/monitor.sh tunnel
+# Потом открываешь:
+# http://localhost:9090 (Prometheus)
+# http://localhost:3000 (Grafana)
+```
+
