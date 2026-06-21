@@ -1,11 +1,43 @@
+# Log files
 *.log
+logs/
 *.swp
 *.swo
 *~
-.DS_Store
+
+# Dependencies
 node_modules/
 __pycache__/
 *.pyc
 .venv/
-v2ray-linux-64.zip
+venv/
+
+# Credentials (NEVER commit!)
+.env
+.env.local
+bot.env
+credentials.json
+
+# Large files
 *.tar.gz
+*.zip
+v2ray-linux-*.zip
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Temp
+/tmp/
+*.tmp
+
+# Docker
+docker-compose.override.yml
+

@@ -1,0 +1,160 @@
+--- 
+- hosts: vps
+  become: false
+  vars:
+    v2ray_service_name: "v2ray"
+    telegram_bot_token: "8691502685:AAFHBitL0iS_0gE9c9mC7qJupCJU1OA-Smo"
+    telegram_chat_id: "7952038621"
+
+  tasks:
+    - name: Ensure base packages
+      apt:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+
+    - name: Create telegram dir
+      file:
+        path: /etc/v2ray-telegram
+        state: directory
+        mode: "0700"
+
+    - name: Create bot.env
+      copy:
+        dest: /etc/v2ray-telegram/bot.env
+        mode: "0600"
+        content: |
+          BOT_TOKEN="{{ telegram_bot_token }}"
+          CHAT_ID="{{ telegram_chat_id }}"
+          SERVICE_NAME="{{ v2ray_service_name }}"
+          HOSTNAME_OVERRIDE=""
+
+    - name: Install check script
+      copy:
+        dest: /usr/local/bin/v2ray_telegram_check.sh
+        mode: "0755"
+        content: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          source /etc/v2ray-telegram/bot.env
+          STATUS=$(systemctl is-active "$SERVICE_NAME" || true)
+          HOST="${HOSTNAME_OVERRIDE:-$(hostname)}"
+          if [ "$STATUS" != "active" ]; then
+            MSG="⚠️ V2Ray сервис '$SERVICE_NAME' НЕ АКТИВЕН на хосте: ${HOST}. Статус: ${STATUS}"
+            curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${CHAT_ID}" \
+              --data-urlencode "text=${MSG}" >/dev/null 2>&1
+          fi
+
+    - name: Create systemd service
+      copy:
+        dest: /etc/systemd/system/v2ray-telegram-check.service
+        content: |
+          [Unit]
+          Description=Check V2Ray and send Telegram alert
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/v2ray_telegram_check.sh
+
+    - name: Create systemd timer
+      copy:
+        dest: /etc/systemd/system/v2ray-telegram-check.timer
+        content: |
+          [Unit]
+          Description=Run V2Ray Telegram check every minute
+          [Timer]
+          OnBootSec=30
+          OnUnitActiveSec=60
+          Unit=v2ray-telegram-check.service
+          [Install]
+          WantedBy=timers.target
+
+    - name: Reload systemd
+      command: systemctl daemon-reload
+
+    - name: Enable timer
+      systemd:
+        name: v2ray-telegram-check.timer
+        enabled: true
+        state: started
+
+    - name: Create monitoring dirs
+      file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - /opt/monitoring
+        - /opt/monitoring/prometheus
+        - /opt/monitoring/grafana
+
+    - name: Deploy docker-compose.yml
+      copy:
+        dest: /opt/monitoring/docker-compose.yml
+        content: |
+          version: "3.8"
+          services:
+            prometheus:
+              image: prom/prometheus:latest
+              container_name: prometheus
+              volumes:
+                - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+              ports:
+                - "127.0.0.1:9090:9090"
+              restart: unless-stopped
+            node-exporter:
+              image: prom/node-exporter:latest
+              container_name: node-exporter
+              pid: "host"
+              network_mode: "host"
+              restart: unless-stopped
+            blackbox-exporter:
+              image: prom/blackbox-exporter:latest
+              container_name: blackbox-exporter
+              ports:
+                - "127.0.0.1:9115:9115"
+              restart: unless-stopped
+            grafana:
+              image: grafana/grafana-oss:latest
+              container_name: grafana
+              ports:
+                - "127.0.0.1:3000:3000"
+              environment:
+                - GF_SECURITY_ADMIN_USER=admin
+                - GF_SECURITY_ADMIN_PASSWORD=admin
+              volumes:
+                - ./grafana:/var/lib/grafana
+              restart: unless-stopped
+
+    - name: Deploy prometheus.yml
+      copy:
+        dest: /opt/monitoring/prometheus/prometheus.yml
+        content: |
+          global:
+            scrape_interval: 15s
+          scrape_configs:
+            - job_name: "node"
+              static_configs:
+                - targets: ["localhost:9100"]
+            - job_name: "blackbox_v2ray_port"
+              metrics_path: /probe
+              params:
+                module: [tcp_connect]
+              static_configs:
+                - targets:
+                    - "localhost:8388"
+              relabel_configs:
+                - source_labels: [__address__]
+                  target_label: __param_target
+                - source_labels: [__param_target]
+                  target_label: instance
+                - target_label: __address__
+                  replacement: "blackbox-exporter:9115"
+
+    - name: Start monitoring stack
+      command: docker compose up -d
+      args:
+        chdir: /opt/monitoring
