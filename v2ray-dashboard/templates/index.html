@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V2Ray Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .card-title {
+            color: #999;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .card-value {
+            color: #667eea;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.online { background: #4caf50; }
+        .status-dot.offline { background: #f44336; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .info-box {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            color: #333;
+        }
+        .info-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-label { color: #999; }
+        .info-value { font-weight: bold; color: #333; }
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 V2Ray Dashboard</h1>
+        
+        <div class="cards">
+            <div class="card">
+                <div class="card-title">Status</div>
+                <div class="card-value">
+                    <span class="status-dot online" id="status-dot"></span>
+                    <span id="status-text">Online</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Memory</div>
+                <div class="card-value" id="memory">-- MB</div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">CPU</div>
+                <div class="card-value" id="cpu">--%</div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Connections</div>
+                <div class="card-value" id="connections">0</div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Uptime</div>
+                <div class="card-value" id="uptime">00:00:00</div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Last Update</div>
+                <div class="card-value" id="last-update" style="font-size: 1.2em;">--:--</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-title">📡 Configuration</div>
+            
+            <div class="info-item">
+                <span class="info-label">SOCKS5</span>
+                <span class="info-value">127.0.0.1:1080</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">HTTP</span>
+                <span class="info-value">127.0.0.1:10808</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Server</span>
+                <span class="info-value">50.114.58.91:8388</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Method</span>
+                <span class="info-value">aes-256-gcm</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Transport</span>
+                <span class="info-value">WebSocket (/ray)</span>
+            </div>
+        </div>
+    </div>
+    
+    <footer>V2Ray Monitoring Dashboard | Real-time Status</footer>
+    
+    <script>
+        function updateStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    const v2ray = data.v2ray;
+                    const statusDot = document.getElementById('status-dot');
+                    const statusText = document.getElementById('status-text');
+                    
+                    if (v2ray.running) {
+                        statusDot.className = 'status-dot online';
+                        statusText.textContent = 'Online';
+                        statusText.style.color = '#4caf50';
+                    } else {
+                        statusDot.className = 'status-dot offline';
+                        statusText.textContent = 'Offline';
+                        statusText.style.color = '#f44336';
+                    }
+                    
+                    document.getElementById('memory').textContent = v2ray.memory_mb + ' MB';
+                    document.getElementById('cpu').textContent = v2ray.cpu.toFixed(1) + '%';
+                    document.getElementById('connections').textContent = v2ray.connections;
+                    
+                    const hours = Math.floor(data.uptime / 3600);
+                    const minutes = Math.floor((data.uptime % 3600) / 60);
+                    const seconds = data.uptime % 60;
+                    document.getElementById('uptime').textContent = 
+                        String(hours).padStart(2, '0') + ':' +
+                        String(minutes).padStart(2, '0') + ':' +
+                        String(seconds).padStart(2, '0');
+                    
+                    const now = new Date();
+                    document.getElementById('last-update').textContent = now.toLocaleTimeString('ru-RU').slice(0, 5);
+                })
+                .catch(e => console.error('Error:', e));
+        }
+        
+        setInterval(updateStatus, 2000);
+        updateStatus();
+    </script>
+</body>
+</html>
